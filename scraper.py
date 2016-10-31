@@ -6,6 +6,7 @@
 from bs4 import BeautifulSoup
 import re
 import urllib.request
+import pandas as pd
 
 def retriveData(url):
     house = []
@@ -20,6 +21,11 @@ def retriveData(url):
         unitPriceStr = data[i].find("div",{"class":"unitPrice"}).span.string
         curHome['unitPrice'] = int((re.findall('\d+', unitPriceStr ))[0]) #Unit price RMB/m2
         curHome['address'] = data[i].find("div",{"class":"houseInfo"}).a.string #Address in Chinese
+        curHome['link'] = data[i].find("div", { "class" : "houseInfo" }).a['href']
+        contentLocation = urllib.request.urlopen(curHome['link']).read()
+        soupLocation = BeautifulSoup(contentLocation)
+        curHome['lon'] = float(soupLocation.find_all("script", { "type" : "text/javascript" })[1].string.split("resblockPosition:")[1].split("'")[1].split(",")[0])
+        curHome['lat'] = float(soupLocation.find_all("script", { "type" : "text/javascript" })[1].string.split("resblockPosition:")[1].split("'")[1].split(",")[1])
         houseInfo = data[i].find("div",{"class":"houseInfo"}).contents[2].string
         curHome['bedroom'] = int((re.findall('\d+', houseInfo.strip(",").strip(" ").split("|")[1] ))[0]) #Number of bedrooms
         curHome['livingroom'] = int((re.findall('\d+', houseInfo.strip(",").strip(" ").split("|")[1] ))[1]) #Number of livingrooms
@@ -40,6 +46,7 @@ def retriveData(url):
             curHome['floor'] = positionInfo.split(" ")[0].split("(")[0] # Floor of the home
         except:
             curHome['totalFloor'] = "NA"
+        print (curHome['address'],curHome['lon'],curHome['lat'])
         house.append(curHome)
     return house
 
@@ -48,20 +55,16 @@ def retriveData(url):
 #Retrive house price for each price categories.
 #Maximum of 100 pages per category.
 #Maximum 30 listings per page.
-house = [] #List of dictionaries
+house = [] #List of pd dfs
 baseurl = "http://bj.lianjia.com/ershoufang/"
-for i in range(0,10):
-    for j in range(0,100):
+for i in range(8,10):
+    for j in range(20,100):
         curURL = baseurl + "p" + str(i+1) + "/pg" + str(j+1) + "/"
         print ("Start retrieving: " + curURL)
         retrivedPage = retriveData(curURL)
-        house+=retrivedPage
+        house.append(pd.DataFrame(retrivedPage))
         print ("Successfully retrived: " + str(len(retrivedPage)))
         print ("Current Total:"  + str(len(house)))
-
 #Save to csv file
-#keys = hosue.key
-with open('./house1.csv', 'w') as output_file:
-    dict_writer = csv.DictWriter(output_file, keys)
-    dict_writer.writeheader()
-    dict_writer.writerows(house)
+df = pd.concat(house)
+df.to_csv('house_compelete.csv', index=False)
