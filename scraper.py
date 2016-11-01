@@ -65,6 +65,8 @@ for i in range(8,10):
         house.append(pd.DataFrame(retrivedPage))
         print ("Successfully retrived: " + str(len(retrivedPage)))
         print ("Current Total:"  + str(len(house)))
+
 #Save to csv file
 df = pd.concat(house)
+df = df.drop_duplicates()
 df.to_csv('house_compelete.csv', index=False)
